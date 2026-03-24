@@ -26,6 +26,15 @@
     _operator_channel: "{{ operator_channel | default('fast') }}"
     _operator_namespace: "openshift-operators"
 
+     # Demo settings
+    _demo_namespace: "{{ demo_namespace | default('terminal-demo') }}"
+    _app_name: "{{ app_name | default('hello-world') }}"
+    _app_image: "{{ app_image | default('registry.redhat.io/ubi8/httpd-24:latest') }}"
+
+    # Showroom settings
+    _showroom_git_repo: "{{ showroom_git_repo | default('https://github.com/rhpds/showroom_template_nookbag.git') }}"
+    _showroom_git_ref: "{{ showroom_git_ref | default('main') }}"
+    _guid: "{{ guid | default('demo') }}"
 
 
    

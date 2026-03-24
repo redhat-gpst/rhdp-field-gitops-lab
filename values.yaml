@@ -45,8 +45,9 @@ ansible:
   extraVars:
     operator_name: "kubevirt-hyperconverged"
     operator_channel: "stable"
+    operator_namespace: "openshift-cnv"
     demo_namespace: "cohesity-ve"
-    app_name: "hello-world"
+    app_name: "cohesity"
     # Showroom configuration - UPDATE THIS to your lab guide repository
     showroom_git_repo: "https://github.com/rhpds/showroom_template_nookbag.git"
     showroom_git_ref: "main"
