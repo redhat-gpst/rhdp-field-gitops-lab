@@ -103,24 +103,74 @@
     # =========================================================================
     # DEPLOYMENT STARTS HERE
     # =========================================================================
-    - name: Display deployment information
-      ansible.builtin.debug:
-        msg:
-          - "=== Web Terminal Deployment ==="
-          - "Operator: {{ _operator_name }}"
-          - "Channel: {{ _operator_channel }}"
-          - "Demo Namespace: {{ _demo_namespace }}"
-          - "Demo App: {{ _app_name }}"
-          - "Showroom Repo: {{ _showroom_git_repo }}"
-          - "Cluster: {{ cluster_domain }}"
+    ---
+- name: Install OpenShift Virtualization and HyperConverged Operator
+  hosts: localhost
+  connection: local
+  gather_facts: false
 
-  
-    - name: Include the operator-install role
-      vars:
-        install_operator_name: "{{ _operator_name }}"
-        install_operator_channel: "{{ _operator_channel }}"
-        install_operator_namespace: "{{ _operator_namespace }}"
-      ansible.builtin.include_role:
-        name: operator-install
+  vars:
+    # Standard namespace for OpenShift Virtualization
+    cnv_namespace: openshift-cnv
+    # Usually 'stable' or a specific version like '4.15'
+    cnv_channel: "stable" 
 
+  tasks:
+    - name: Create openshift-cnv Namespace
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ cnv_namespace }}"
+            labels:
+              openshift.io/cluster-monitoring: "true"
 
+    - name: Create OperatorGroup for CNV
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: operators.coreos.com/v1
+          kind: OperatorGroup
+          metadata:
+            name: kubevirt-hyperconverged-group
+            namespace: "{{ cnv_namespace }}"
+          spec:
+            targetNamespaces:
+              - "{{ cnv_namespace }}"
+
+    - name: Subscribe to OpenShift Virtualization Operator
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: operators.coreos.com/v1alpha1
+          kind: Subscription
+          metadata:
+            name: kubevirt-hyperconverged
+            namespace: "{{ cnv_namespace }}"
+          spec:
+            channel: "{{ cnv_channel }}"
+            installPlanApproval: Automatic
+            name: kubevirt-hyperconverged
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+
+    - name: Wait for Operator to be ready
+      kubernetes.core.k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        namespace: "{{ cnv_namespace }}"
+      register: csv_list
+      until: 
+        - csv_list.resources | length > 0
+        - csv_list.resources[0].status.phase == "Succeeded"
+      retries: 30
+      delay: 10
+
+    - name: Create the HyperConverged Custom Resource
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: hco.kubevirt.io/v1beta1
+          kind: HyperConverged
+          metadata:
+            name: kubevirt-hyperconverged
+            namespace: "{{ cnv_namespace }}"
+          spec: {} # Default configuration is usually sufficient
